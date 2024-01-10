@@ -1,46 +1,100 @@
-import { QMainWindow, QWidget, QLabel, FlexLayout, QPushButton, QIcon } from '@nodegui/nodegui';
-import logo from '../assets/logox200.png';
+import { FlexLayout, QComboBox, QLineEdit, QMainWindow, QPushButton, QTextEdit, QWidget } from '@nodegui/nodegui';
+import axios from 'axios';
+let cheerio = require('cheerio');
+
+async function scraper(link: any, selectedTag: String){
+  const temp = await axios.get(link)
+  const $ = cheerio.load(temp.data);
+  const tag = $(selectedTag);
+  return tag.html();
+}
+
+// async function Scraper(link: string, selectedTag: string) {
+//   try {
+//     const response = await axios.get(link);
+//     const data = response.data;
+//     console.log("ln7 " + data["body"] +" , "+ selectedTag +" , "+ link);
+//     if(selectedTag === 'Custom'){
+//       return data;
+//     }
+
+//     if(data != null){
+//       console.log("data - custom");
+//       return data[selectedTag];
+//     }else{
+//       console.log("data - custom tag failed")
+//       return null;
+//     }
+//   } catch (err) {
+//     console.log("data - retrived failed")
+//     console.error('Error:', err);
+//     return null;
+//   }
+// }
 
 const win = new QMainWindow();
-win.setWindowTitle("Hello World");
+win.setWindowTitle("Web Scraper");
 
-const centralWidget = new QWidget();
-centralWidget.setObjectName("myroot");
-const rootLayout = new FlexLayout();
-centralWidget.setLayout(rootLayout);
+const mainWidget = new QWidget();
+mainWidget.setObjectName('mainWidget');
 
-const label = new QLabel();
-label.setObjectName("mylabel");
-label.setText("Hello");
+const layout = new FlexLayout();
+mainWidget.setLayout(layout);
 
-const button = new QPushButton();
-button.setIcon(new QIcon(logo));
+const userInput = new QLineEdit();
+userInput.setPlaceholderText('Enter URL');
 
-const label2 = new QLabel();
-label2.setText("World");
-label2.setInlineStyle(`
-  color: red;
-`);
+const tagMenu = new QComboBox();
+tagMenu.addItem(undefined, 'html');
+tagMenu.addItem(undefined, 'head');
+tagMenu.addItem(undefined, 'body');
+tagMenu.addItem(undefined, 'text');
+tagMenu.addItem(undefined, 'Custom');
+tagMenu.setCurrentIndex(0);
 
-rootLayout.addWidget(label);
-rootLayout.addWidget(button);
-rootLayout.addWidget(label2);
-win.setCentralWidget(centralWidget);
-win.setStyleSheet(
-  `
-    #myroot {
-      background-color: #009688;
-      height: '100%';
-      align-items: 'center';
-      justify-content: 'center';
+const customTagInput = new QLineEdit();
+customTagInput.setPlaceholderText('Enter Custom Tag');
+customTagInput.setVisible(false);
+
+tagMenu.addEventListener('currentIndexChanged', (index) => {
+  const isCustomTagSelected = tagMenu.currentText() === 'Custom';
+  customTagInput.setVisible(isCustomTagSelected);
+});
+
+const results = new QTextEdit();
+results.setObjectName('results');
+results.setReadOnly(true);
+
+const scrapeButton = new QPushButton();
+scrapeButton.setText('Scrape');
+scrapeButton.addEventListener('clicked', async () => {
+  const link = userInput.text();
+  const selectedTag =
+    tagMenu.currentText() === 'Custom'
+    ? customTagInput.text()
+    :tagMenu.currentText();
+
+  if(link){
+    //const data = await Scraper(link, selectedTag);
+    const data = await scraper(link, selectedTag);
+    if(data != null){
+      results.setHtml(`Fetched data:\n<pre>${data}</pre>`);
+    }else{
+      results.setText('Failed to fetch data or Tag not found.');
     }
-    #mylabel {
-      font-size: 16px;
-      font-weight: bold;
-      padding: 1;
-    }
-  `
-);
+  }else{
+    results.setText('Please enter a valid link.');
+  }
+});
+
+layout.addWidget(userInput);
+layout.addWidget(tagMenu);
+layout.addWidget(customTagInput);
+layout.addWidget(scrapeButton);
+layout.addWidget(results);
+
+win.setCentralWidget(mainWidget);
+
 win.show();
 
-(global as any).win = win;
+(global as any).win = win
